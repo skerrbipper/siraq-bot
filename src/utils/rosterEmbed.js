@@ -46,7 +46,8 @@ function buildRosterEmbed() {
         const lines = list.map((m, i) => {
             totalShown++;
             const status = m.absent ? ' *(ausente)*' : '';
-            return `> \`${String(totalShown).padStart(2, '0')}\` **${m.name}**${status}`;
+            const mention = m.discordId ? ` <@${m.discordId}>` : '';
+            return `> \`${String(totalShown).padStart(2, '0')}\` **${m.name}**${mention}${status}`;
         });
 
         embed.addFields({
