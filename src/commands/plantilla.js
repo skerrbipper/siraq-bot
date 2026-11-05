@@ -85,6 +85,9 @@ module.exports = {
                             { name: '🐪 Camello', value: 'Camello' },
                         )
                 )
+        )
+        .addSubcommand((sub) =>
+            sub.setName('actualizar').setDescription('Fuerza la actualización del mensaje de plantilla')
         ),
 
     async execute(interaction) {
@@ -98,6 +101,18 @@ module.exports = {
 
         const sub = interaction.options.getSubcommand();
         const config = loadConfig();
+
+        // ── Actualizar ──
+        if (sub === 'actualizar') {
+            await interaction.deferReply({ ephemeral: true });
+            if (!config.rosterChannelId) {
+                return interaction.editReply({
+                    content: '❌ No hay canal de plantilla configurado. Usa `/config` para configurarlo.',
+                });
+            }
+            await updateRosterMessage(interaction.client);
+            return interaction.editReply({ content: '✅ Plantilla actualizada.' });
+        }
 
         // ── Ver ──
         if (sub === 'ver') {
