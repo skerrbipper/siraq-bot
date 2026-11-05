@@ -5,6 +5,7 @@ const DATA_DIR = path.join(__dirname, '../../data');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 const INVENTORY_FILE = path.join(DATA_DIR, 'inventory.json');
 const ABSENCES_FILE = path.join(DATA_DIR, 'absences.json');
+const ROSTER_FILE = path.join(DATA_DIR, 'roster.json');
 
 // Asegura que el directorio data existe
 if (!fs.existsSync(DATA_DIR)) {
@@ -27,6 +28,9 @@ const DEFAULT_CONFIG = {
     // Ausencias
     absenceChannelId: null,   // canal de ausencias
     absenceRoleId: null,      // rol de ausente
+    // Plantilla
+    rosterChannelId: null,    // canal donde se muestra la plantilla
+    rosterMessageId: null,    // id del mensaje de la plantilla
 };
 
 function loadConfig() {
@@ -160,6 +164,12 @@ module.exports = {
     removeAbsence,
     getActiveAbsences,
     getExpiredAbsences,
+    // Plantilla
+    loadRoster,
+    saveRoster,
+    addMember,
+    removeMember,
+    updateMember,
 };
 
 // ──────────────────────────────────────────────
@@ -227,4 +237,72 @@ function getActiveAbsences() {
     const data = loadAbsences();
     const now = new Date();
     return data.absences.filter((a) => new Date(a.endDate) >= now);
+}
+
+// ──────────────────────────────────────────────
+//  PLANTILLA
+// ──────────────────────────────────────────────
+
+function loadRoster() {
+    if (!fs.existsSync(ROSTER_FILE)) {
+        const def = { members: [] };
+        fs.writeFileSync(ROSTER_FILE, JSON.stringify(def, null, 2));
+        return def;
+    }
+    try {
+        return JSON.parse(fs.readFileSync(ROSTER_FILE, 'utf-8'));
+    } catch {
+        return { members: [] };
+    }
+}
+
+function saveRoster(data) {
+    fs.writeFileSync(ROSTER_FILE, JSON.stringify(data, null, 2));
+}
+
+/**
+ * Añade un miembro. Si ya existe (por discordId), lo actualiza.
+ */
+function addMember(discordId, name, rank, addedBy) {
+    const roster = loadRoster();
+    const existing = roster.members.findIndex((m) => m.discordId === discordId);
+    const member = {
+        discordId,
+        name,
+        rank,
+        absent: false,
+        addedBy,
+        joinedAt: new Date().toISOString(),
+    };
+
+    if (existing >= 0) {
+        // Preserva joinedAt original
+        member.joinedAt = roster.members[existing].joinedAt;
+        roster.members[existing] = member;
+    } else {
+        roster.members.push(member);
+    }
+
+    saveRoster(roster);
+    return member;
+}
+
+function removeMember(discordId) {
+    const roster = loadRoster();
+    const before = roster.members.length;
+    roster.members = roster.members.filter((m) => m.discordId !== discordId);
+    saveRoster(roster);
+    return roster.members.length < before;
+}
+
+/**
+ * Actualiza campos de un miembro existente.
+ */
+function updateMember(discordId, fields) {
+    const roster = loadRoster();
+    const idx = roster.members.findIndex((m) => m.discordId === discordId);
+    if (idx < 0) return null;
+    roster.members[idx] = { ...roster.members[idx], ...fields };
+    saveRoster(roster);
+    return roster.members[idx];
 }

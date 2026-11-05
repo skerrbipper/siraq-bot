@@ -154,6 +154,12 @@ module.exports = {
 
             removeAbsence(interaction.user.id);
 
+            // Desmarca en la plantilla
+            const { updateMember } = require('../utils/database');
+            updateMember(interaction.user.id, { absent: false });
+            const { updateRosterMessage } = require('../utils/rosterEmbed');
+            await updateRosterMessage(interaction.client);
+
             return interaction.reply({
                 content: '✅ Tu ausencia ha sido cancelada y se te ha quitado el rol.',
                 ephemeral: true,
@@ -274,6 +280,12 @@ module.exports = {
                 endDate.toISOString(),
                 interaction.message?.id || null,
             );
+
+            // Marca como ausente en la plantilla si está registrado
+            const { updateMember } = require('../utils/database');
+            updateMember(targetUserId, { absent: true });
+            const { updateRosterMessage } = require('../utils/rosterEmbed');
+            await updateRosterMessage(interaction.client);
 
             const embed = new EmbedBuilder()
                 .setColor('#FFA500')

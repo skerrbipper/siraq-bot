@@ -55,6 +55,12 @@ function startAbsenceChecker(client) {
                 }
 
                 removeAbsence(absence.userId);
+
+                // Desmarca en la plantilla y actualiza el mensaje
+                const { updateMember } = require('../utils/database');
+                const { updateRosterMessage } = require('../utils/rosterEmbed');
+                updateMember(absence.userId, { absent: false });
+                await updateRosterMessage(client);
             } catch (err) {
                 console.error(`[Ausencias] Error procesando ausencia de ${absence.username}:`, err.message);
             }

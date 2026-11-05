@@ -74,6 +74,11 @@ function buildMainPanel(config) {
                 inline: true,
             },
             {
+                name: '👥 Canal de Plantilla',
+                value: config.rosterChannelId ? `<#${config.rosterChannelId}>` : '`No configurado`',
+                inline: true,
+            },
+            {
                 name: '🎨 Color del embed',
                 value: `\`${config.embedColor}\``,
                 inline: true,
@@ -115,6 +120,11 @@ function buildMainPanel(config) {
             .setCustomId('config:setAbsence')
             .setLabel('Ausencias')
             .setEmoji('😴')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('config:setRoster')
+            .setLabel('Plantilla')
+            .setEmoji('👥')
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('config:refreshInventory')
@@ -233,6 +243,25 @@ module.exports = {
                 new ActionRowBuilder().addComponents(colorInput),
                 new ActionRowBuilder().addComponents(footerInput),
             );
+            return interaction.showModal(modal);
+        }
+
+        // ── Plantilla ──
+        if (action === 'setRoster') {
+            const config = loadConfig();
+            const modal = new ModalBuilder()
+                .setCustomId('config:modalRoster')
+                .setTitle('👥 Canal de Plantilla');
+
+            const channelInput = new TextInputBuilder()
+                .setCustomId('rosterChannelId')
+                .setLabel('ID del canal de plantilla')
+                .setStyle(TextInputStyle.Short)
+                .setValue(config.rosterChannelId || '')
+                .setPlaceholder('123456789012345678')
+                .setRequired(false);
+
+            modal.addComponents(new ActionRowBuilder().addComponents(channelInput));
             return interaction.showModal(modal);
         }
 
@@ -441,6 +470,39 @@ module.exports = {
             return interaction.update({
                 ...buildMainPanel(newConfig),
                 content: '✅ Apariencia actualizada.',
+            });
+        }
+
+        // ── Plantilla ──
+        if (action === 'modalRoster') {
+            const channelId = interaction.fields.getTextInputValue('rosterChannelId').trim();
+
+            if (channelId) {
+                const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
+                if (!channel) {
+                    return interaction.reply({
+                        content: `❌ No encontré el canal con ID \`${channelId}\`.`,
+                        ephemeral: true,
+                    });
+                }
+                config.rosterChannelId = channelId;
+                config.rosterMessageId = null; // fuerza recrear el mensaje
+            } else {
+                config.rosterChannelId = null;
+                config.rosterMessageId = null;
+            }
+
+            saveConfig(config);
+
+            if (config.rosterChannelId) {
+                const { updateRosterMessage } = require('../utils/rosterEmbed');
+                await updateRosterMessage(interaction.client);
+            }
+
+            const newConfig = loadConfig();
+            return interaction.update({
+                ...buildMainPanel(newConfig),
+                content: '✅ Canal de plantilla configurado.',
             });
         }
 
