@@ -64,6 +64,16 @@ function buildMainPanel(config) {
                 inline: false,
             },
             {
+                name: '😴 Canal de Ausencias',
+                value: config.absenceChannelId ? `<#${config.absenceChannelId}>` : '`No configurado`',
+                inline: true,
+            },
+            {
+                name: '😴 Rol de Ausente',
+                value: config.absenceRoleId ? `<@&${config.absenceRoleId}>` : '`No configurado`',
+                inline: true,
+            },
+            {
                 name: '🎨 Color del embed',
                 value: `\`${config.embedColor}\``,
                 inline: true,
@@ -102,10 +112,18 @@ function buildMainPanel(config) {
             .setEmoji('🎭')
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
+            .setCustomId('config:setAbsence')
+            .setLabel('Ausencias')
+            .setEmoji('😴')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
             .setCustomId('config:refreshInventory')
             .setLabel('Actualizar Inventario')
             .setEmoji('🔄')
             .setStyle(ButtonStyle.Success),
+    );
+
+    const row3 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('config:clearInventory')
             .setLabel('Limpiar Inventario')
@@ -113,7 +131,7 @@ function buildMainPanel(config) {
             .setStyle(ButtonStyle.Danger),
     );
 
-    return { embeds: [embed], components: [row1, row2], ephemeral: true };
+    return { embeds: [embed], components: [row1, row2, row3], ephemeral: true };
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -214,6 +232,36 @@ module.exports = {
                 new ActionRowBuilder().addComponents(titleInput),
                 new ActionRowBuilder().addComponents(colorInput),
                 new ActionRowBuilder().addComponents(footerInput),
+            );
+            return interaction.showModal(modal);
+        }
+
+        // ── Ausencias ──
+        if (action === 'setAbsence') {
+            const config = loadConfig();
+            const modal = new ModalBuilder()
+                .setCustomId('config:modalAbsence')
+                .setTitle('😴 Configurar Ausencias');
+
+            const channelInput = new TextInputBuilder()
+                .setCustomId('absenceChannelId')
+                .setLabel('ID del canal de ausencias')
+                .setStyle(TextInputStyle.Short)
+                .setValue(config.absenceChannelId || '')
+                .setPlaceholder('123456789012345678')
+                .setRequired(false);
+
+            const roleInput = new TextInputBuilder()
+                .setCustomId('absenceRoleId')
+                .setLabel('ID del rol de ausente')
+                .setStyle(TextInputStyle.Short)
+                .setValue(config.absenceRoleId || '')
+                .setPlaceholder('123456789012345678')
+                .setRequired(false);
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(channelInput),
+                new ActionRowBuilder().addComponents(roleInput),
             );
             return interaction.showModal(modal);
         }
@@ -393,6 +441,45 @@ module.exports = {
             return interaction.update({
                 ...buildMainPanel(newConfig),
                 content: '✅ Apariencia actualizada.',
+            });
+        }
+
+        // ── Ausencias ──
+        if (action === 'modalAbsence') {
+            const channelId = interaction.fields.getTextInputValue('absenceChannelId').trim();
+            const roleId = interaction.fields.getTextInputValue('absenceRoleId').trim();
+
+            if (channelId) {
+                const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
+                if (!channel) {
+                    return interaction.reply({
+                        content: `❌ No encontré el canal con ID \`${channelId}\`.`,
+                        ephemeral: true,
+                    });
+                }
+                config.absenceChannelId = channelId;
+            } else {
+                config.absenceChannelId = null;
+            }
+
+            if (roleId) {
+                const role = await interaction.guild.roles.fetch(roleId).catch(() => null);
+                if (!role) {
+                    return interaction.reply({
+                        content: `❌ No encontré el rol con ID \`${roleId}\`.`,
+                        ephemeral: true,
+                    });
+                }
+                config.absenceRoleId = roleId;
+            } else {
+                config.absenceRoleId = null;
+            }
+
+            saveConfig(config);
+
+            return interaction.update({
+                ...buildMainPanel(config),
+                content: '✅ Configuración de ausencias actualizada.',
             });
         }
 
